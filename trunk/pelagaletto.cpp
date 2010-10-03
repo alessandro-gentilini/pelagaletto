@@ -61,6 +61,27 @@ card_t put( deck_t& table, deck_t& putter )
 	return f;
 }
 
+#include <iomanip>
+std::string stringify( const deck_t& d )
+{
+	std::ostringstream ss;
+	for ( deck_t::const_iterator it = d.begin(); it != d.end(); it++ ) {
+		ss << std::setw(2) << std::setfill('0') << *it << " ";
+	}
+	return ss.str();
+}
+
+deck_t init( const std::string& s )
+{
+	deck_t d;
+	std::istringstream ss(s);
+	card_t c;
+	while( ss >> c ) {
+		d.push_back( c );
+	}
+	return d;
+}
+
 int main(int argc, char* argv[])
 {
 	for ( int p = 0; p< 1000000; p++ ) {
@@ -73,6 +94,11 @@ int main(int argc, char* argv[])
 
 		deck_t p1( deck.begin()   , deck.begin()+20 );
 		deck_t p2( deck.begin()+20, deck.end()      );
+
+		std::cout << stringify( p1 ) << std::endl;
+		std::cout << stringify( p2 ) << std::endl;
+
+		init( stringify( p1 ) );
 
 		deck_t table;
 
