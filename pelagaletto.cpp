@@ -15,7 +15,7 @@ class Romagnole
 {
 public:
 	static const unsigned n_suits = 4;
-	static const unsigned cards_per_suits = 13;
+	static const unsigned cards_per_suits = 10;
 	static const unsigned min = 0;
 	static const unsigned max = n_suits * cards_per_suits - 1;
 
@@ -35,7 +35,7 @@ private:
 };
 
 const char* Romagnole::suits_desc[Romagnole::n_suits] = {"Bastoni","Coppe","Denari","Spade"};
-const char* Romagnole::cards_desc[Romagnole::cards_per_suits] = {"Asso","2","3","4","5","6","7","Fante","Cavallo","Re","","",""};
+const char* Romagnole::cards_desc[Romagnole::cards_per_suits] = {"Asso","2","3","4","5","6","7","Fante","Cavallo","Re"};
 
 #include <algorithm>
 #include <iostream>
@@ -84,35 +84,47 @@ deck_t init( const std::string& s )
 
 #include <set>
 
+card_t battle_filter( const card_t& c )
+{
+	int score = Romagnole::score( c );
+	if ( score==0 || score==1 || score==2 ) {
+		return c;
+	} else {
+		return 99;
+	}
+}
+
 int main(int argc, char* argv[])
 {
 	std::set< std::string > provate;
 
-	for ( int p = 0; p< 1000000; p++ ) {
-		deck_t deck;
-		for ( int i = 0; i < Romagnole::n_suits * Romagnole::cards_per_suits; i++ ) {
-			deck.push_back( i );
-		}
+	int size = 20;//Romagnole::n_suits * Romagnole::cards_per_suits;
+	deck_t deck;
+	for ( int i = 0; i < size; i++ ) {
+		deck.push_back( battle_filter(i) );
+	}
 
-		std::random_shuffle( deck.begin(), deck.end() );
+	std::sort( deck.begin(), deck.end() );
 
+	int p = 0;
+	do {
+		/*
 		std::string sdeck( stringify( deck ) );
 		if ( provate.count( sdeck ) ) {
 			continue;
 		} else {
 			provate.insert( sdeck );
 		}
+		*/
 
-		deck_t p1( deck.begin()   , deck.begin()+20 );
-		deck_t p2( deck.begin()+20, deck.end()      );
+		deck_t p1( deck.begin()   , deck.begin()+size/2 );
+		deck_t p2( deck.begin()+size/2, deck.end()      );
 
-		// http://www.robots.ox.ac.uk/~rmann/research.php
-		p1 = init( "02 99 02 02 99 99 99 99 02 99 03 99 99 99 99 99 00 03 03 99 99 01 99 99 00 99 " );
-		p2 = init( "99 99 99 01 99 99 99 01 99 00 99 99 99 99 99 00 99 99 99 99 99 99 03 01 99 99 " );
-
+		/*
 		std::cerr << "Start " << p << std::endl;
 		std::cerr << "p1 " << stringify( p1 ) << std::endl;
 		std::cerr << "p2 " << stringify( p2 ) << std::endl << std::endl;
+		*/
 
 		deck_t table;
 
@@ -164,12 +176,6 @@ int main(int argc, char* argv[])
 					iniziatore_battle = calatore;
 					indice_iniziatore_battle = indice_calatore;
 					break;
-				case 3: 
-					battle=true;
-					battle_cards = 4;
-					iniziatore_battle = calatore;
-					indice_iniziatore_battle = indice_calatore;
-					break;
 				default:
 					if ( battle ) {
 						battle_cards--;
@@ -199,10 +205,12 @@ int main(int argc, char* argv[])
 				}//fine swap
 			}// fine - aggiorna calatore
 
+			/*
 			std::cerr << p << "." << mosse << std::endl;
 			std::cerr << "p1 " << stringify( p1 ) << std::endl;
 			std::cerr << "p2 " << stringify( p2 ) << std::endl;
 			std::cerr << "t  " << stringify( table ) << std::endl << std::endl;
+			*/
 
 			mosse++;
 		}
@@ -214,7 +222,10 @@ int main(int argc, char* argv[])
 		if ( p2.empty() ) {
 			std::cout << p << ",1," << mosse << std::endl;
 		}
-	}
+
+		p++;
+
+	} while ( std::next_permutation( deck.begin(), deck.end() ) );
 
 	return 0;
 }
