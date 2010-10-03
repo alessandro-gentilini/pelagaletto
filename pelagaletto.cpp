@@ -15,7 +15,7 @@ class Romagnole
 {
 public:
 	static const unsigned n_suits = 4;
-	static const unsigned cards_per_suits = 10;
+	static const unsigned cards_per_suits = 13;
 	static const unsigned min = 0;
 	static const unsigned max = n_suits * cards_per_suits - 1;
 
@@ -35,7 +35,7 @@ private:
 };
 
 const char* Romagnole::suits_desc[Romagnole::n_suits] = {"Bastoni","Coppe","Denari","Spade"};
-const char* Romagnole::cards_desc[Romagnole::cards_per_suits] = {"Asso","2","3","4","5","6","7","Fante","Cavallo","Re"};
+const char* Romagnole::cards_desc[Romagnole::cards_per_suits] = {"Asso","2","3","4","5","6","7","Fante","Cavallo","Re","","",""};
 
 #include <algorithm>
 #include <iostream>
@@ -106,6 +106,10 @@ int main(int argc, char* argv[])
 		deck_t p1( deck.begin()   , deck.begin()+20 );
 		deck_t p2( deck.begin()+20, deck.end()      );
 
+		// http://www.robots.ox.ac.uk/~rmann/research.php
+		p1 = init( "02 99 02 02 99 99 99 99 02 99 03 99 99 99 99 99 00 03 03 99 99 01 99 99 00 99 " );
+		p2 = init( "99 99 99 01 99 99 99 01 99 00 99 99 99 99 99 00 99 99 99 99 99 99 03 01 99 99 " );
+
 		std::cerr << "Start " << p << std::endl;
 		std::cerr << "p1 " << stringify( p1 ) << std::endl;
 		std::cerr << "p2 " << stringify( p2 ) << std::endl << std::endl;
@@ -157,6 +161,12 @@ int main(int argc, char* argv[])
 				case 2: 
 					battle=true;
 					battle_cards = 3;
+					iniziatore_battle = calatore;
+					indice_iniziatore_battle = indice_calatore;
+					break;
+				case 3: 
+					battle=true;
+					battle_cards = 4;
 					iniziatore_battle = calatore;
 					indice_iniziatore_battle = indice_calatore;
 					break;
