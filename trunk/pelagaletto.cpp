@@ -1,6 +1,9 @@
 /*
 Pelagaletto
 Alessandro Gentilini
+Warning: the code is not polished.
+
+GNU General Public License v3
 $Date$
 */
 
