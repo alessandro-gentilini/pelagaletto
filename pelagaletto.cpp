@@ -82,8 +82,12 @@ deck_t init( const std::string& s )
 	return d;
 }
 
+#include <set>
+
 int main(int argc, char* argv[])
 {
+	std::set< std::string > provate;
+
 	for ( int p = 0; p< 1000000; p++ ) {
 		deck_t deck;
 		for ( int i = 0; i < Romagnole::n_suits * Romagnole::cards_per_suits; i++ ) {
@@ -92,13 +96,19 @@ int main(int argc, char* argv[])
 
 		std::random_shuffle( deck.begin(), deck.end() );
 
+		std::string sdeck( stringify( deck ) );
+		if ( provate.count( sdeck ) ) {
+			continue;
+		} else {
+			provate.insert( sdeck );
+		}
+
 		deck_t p1( deck.begin()   , deck.begin()+20 );
 		deck_t p2( deck.begin()+20, deck.end()      );
 
-		std::cout << stringify( p1 ) << std::endl;
-		std::cout << stringify( p2 ) << std::endl;
-
-		init( stringify( p1 ) );
+		std::cerr << "Start " << p << std::endl;
+		std::cerr << "p1 " << stringify( p1 ) << std::endl;
+		std::cerr << "p2 " << stringify( p2 ) << std::endl << std::endl;
 
 		deck_t table;
 
@@ -131,7 +141,7 @@ int main(int argc, char* argv[])
 
 			// aggiorna battle
 			bool prev_battle = battle;
-			switch ( c ) {
+			switch ( Romagnole::score( c ) ) {
 				case 0: 
 					battle=true;
 					battle_cards = 1;
@@ -178,6 +188,11 @@ int main(int argc, char* argv[])
 					default: throw std::exception("Unexpected number of players!");
 				}//fine swap
 			}// fine - aggiorna calatore
+
+			std::cerr << p << "." << mosse << std::endl;
+			std::cerr << "p1 " << stringify( p1 ) << std::endl;
+			std::cerr << "p2 " << stringify( p2 ) << std::endl;
+			std::cerr << "t  " << stringify( table ) << std::endl << std::endl;
 
 			mosse++;
 		}
