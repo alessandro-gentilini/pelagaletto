@@ -11,32 +11,6 @@ $Date$
 #include <sstream>
 #include <exception>
 
-class Romagnole
-{
-public:
-	static const unsigned n_suits = 4;
-	static const unsigned cards_per_suits = 10;
-	static const unsigned min = 0;
-	static const unsigned max = n_suits * cards_per_suits - 1;
-
-	static std::string toString( int c ) throw ( std::exception )
-	{
-		if ( c < min || c > max ) throw std::exception("Unexpected card value!");
-		std::ostringstream ss;
-		ss << cards_desc[c%cards_per_suits] << " di " << suits_desc[c/cards_per_suits];
-		return ss.str();
-	}
-
-	inline static int score( int c ){ return c%cards_per_suits; }
-
-private:
-	static const char* suits_desc[n_suits];
-	static const char* cards_desc[cards_per_suits];
-};
-
-const char* Romagnole::suits_desc[Romagnole::n_suits] = {"Bastoni","Coppe","Denari","Spade"};
-const char* Romagnole::cards_desc[Romagnole::cards_per_suits] = {"Asso","2","3","4","5","6","7","Fante","Cavallo","Re"};
-
 #include <algorithm>
 #include <iostream>
 #include <deque>
@@ -48,8 +22,8 @@ typedef deck_t::value_type card_t;
 void win( deck_t& table, deck_t& winner )
 {
 	while ( !table.empty() ) {
-		winner.push_back( table.front() );
-		table.pop_front();
+		winner.push_back( table.back() );
+		table.pop_back();
 	}
 }
 
@@ -59,6 +33,15 @@ card_t put( deck_t& table, deck_t& putter )
 	table.push_front( f );
 	putter.pop_front();
 	return f;
+}
+
+void myswap( deck_t** first_player, deck_t* A, deck_t* B )
+{
+	if ( *first_player == A ) {
+		*first_player = B;
+	} else if ( *first_player == B ) {
+		*first_player = A;
+	}
 }
 
 #include <iomanip>
@@ -84,29 +67,50 @@ deck_t init( const std::string& s )
 
 #include <set>
 
-card_t battle_filter( const card_t& c )
+
+
+#include <windows.h>
+
+ULONGLONG ptime()
 {
-	int score = Romagnole::score( c );
-	if ( score==0 || score==1 || score==2 ) {
-		return c;
-	} else {
-		return 99;
-	}
+	FILETIME c, e, k, u;
+	BOOL b = ::GetProcessTimes( ::GetCurrentProcess(), &c, &e, &k, &u );
+	ULARGE_INTEGER li;
+	li.HighPart = u.dwHighDateTime;
+	li.LowPart = u.dwLowDateTime;
+	return li.QuadPart;
 }
+
 
 int main(int argc, char* argv[])
 {
+	ULONGLONG begin = ptime();
+
+	int count = 3;
+	
 	std::set< std::string > provate;
 
-	int size = 20;//Romagnole::n_suits * Romagnole::cards_per_suits;
-	deck_t deck;
-	for ( int i = 0; i < size; i++ ) {
-		deck.push_back( battle_filter(i) );
+	size_t size = 20;
+	card_t battle_cards[]={1,2,3,
+						   1,2,3,
+						   /*1,2,3,
+	                       1,2,3*/
+						  };
+
+	deck_t deck( size, 0 );
+	size_t battle_cards_size = sizeof(battle_cards)/sizeof(card_t);
+	deck_t::iterator sep = deck.begin() + battle_cards_size;
+	for ( deck_t::iterator it = deck.begin(); it != sep; it++ ) {
+		*it = battle_cards[ it - deck.begin() ];
+	}
+	bool verbose = false;
+	for ( deck_t::iterator it = sep; verbose && it != deck.end(); it++ ) {
+		*it = ++battle_cards_size;
 	}
 
 	std::sort( deck.begin(), deck.end() );
 
-	int p = 0;
+	int match = 0;
 	do {
 		/*
 		std::string sdeck( stringify( deck ) );
@@ -117,115 +121,91 @@ int main(int argc, char* argv[])
 		}
 		*/
 
-		deck_t p1( deck.begin()   , deck.begin()+size/2 );
-		deck_t p2( deck.begin()+size/2, deck.end()      );
+		deck_t A( deck.begin()       , deck.begin()+size/2 );
+		deck_t B( deck.begin()+size/2, deck.end()          );
 
 		/*
-		std::cerr << "Start " << p << std::endl;
-		std::cerr << "p1 " << stringify( p1 ) << std::endl;
-		std::cerr << "p2 " << stringify( p2 ) << std::endl << std::endl;
+		std::cerr << "Start " << match << std::endl;
+		std::cerr << "A " << stringify( A ) << std::endl;
+		std::cerr << "B " << stringify( B ) << std::endl << std::endl;
 		*/
 
 		deck_t table;
 
-		unsigned indice_calatore  = 1;//eliminarlo!
-		unsigned indice_iniziatore_battle = 0;
-
-		deck_t* calatore  = &p1;
-		deck_t* iniziatore_battle;
+		deck_t* first_player  = &A;
+		deck_t* battle_starter;
 
 		bool battle = false;
+		int number_of_battles = 0;
 		int battle_cards = 0;
-		int mosse = 0;
+		int turned_cards = 0;
 
-		while ( !(p1.empty() || p2.empty()) ) {
-			
-			switch( indice_calatore ) {
-				case 1: calatore = &p1; break;
-				case 2: calatore = &p2; break;
-				default: throw std::exception("Unexpected number of players!");
-			}
+		while ( !(A.empty() || B.empty()) ) {
 
-			switch( indice_iniziatore_battle ) {
-				case 0: break;//nessuna battaglia in corso
-				case 1: iniziatore_battle = &p1; break;
-				case 2: iniziatore_battle = &p2; break;
-				default: throw std::exception("Unexpected number of players!");
-			}
-
-			card_t c = put( table, *calatore );
+			card_t c = put( table, *first_player );
 
 			// aggiorna battle
 			bool prev_battle = battle;
-			switch ( Romagnole::score( c ) ) {
-				case 0: 
-					battle=true;
-					battle_cards = 1;
-					iniziatore_battle = calatore;
-					indice_iniziatore_battle = indice_calatore;
-					break;
+			switch ( c ) {
 				case 1: 
+				case 2:
+				case 3:
 					battle=true;
-					battle_cards = 2;
-					iniziatore_battle = calatore;
-					indice_iniziatore_battle = indice_calatore;
-					break;
-				case 2: 
-					battle=true;
-					battle_cards = 3;
-					iniziatore_battle = calatore;
-					indice_iniziatore_battle = indice_calatore;
+					number_of_battles++;
+					battle_cards = c;
+					battle_starter = first_player;
 					break;
 				default:
 					if ( battle ) {
 						battle_cards--;
 						if ( battle_cards == 0 ) {
 							battle = false;
-							win( table, *iniziatore_battle );
-							indice_iniziatore_battle = 0;
+							win( table, *battle_starter );
 						}
 					}
 			}// fine - aggiorna battle
 
-			// aggiorna calatore
+			// aggiorna first_player
 			if ( battle ) {
-				if ( indice_calatore == indice_iniziatore_battle ) {
-					switch( indice_calatore ) {//swap
-						case 1: indice_calatore = 2; break;
-						case 2: indice_calatore = 1; break;
-						default: throw std::exception("Unexpected number of players!");
-					}//fine swap
+				if ( first_player == battle_starter ) {
+					myswap( &first_player, &A, &B );
 				} else {
 				}
 			} else {
-				switch( indice_calatore ) {//swap
-					case 1: indice_calatore = 2; break;
-					case 2: indice_calatore = 1; break;
-					default: throw std::exception("Unexpected number of players!");
-				}//fine swap
-			}// fine - aggiorna calatore
-
-			/*
-			std::cerr << p << "." << mosse << std::endl;
-			std::cerr << "p1 " << stringify( p1 ) << std::endl;
-			std::cerr << "p2 " << stringify( p2 ) << std::endl;
-			std::cerr << "t  " << stringify( table ) << std::endl << std::endl;
-			*/
-
-			mosse++;
+				myswap( &first_player, &A, &B );
+			}// fine - aggiorna first_player
+/*
+			std::cerr << match << "." << turned_cards << std::endl;
+			std::cerr << "A " << stringify( A ) << std::endl;
+			std::cerr << "B " << stringify( B ) << std::endl;
+			std::cerr << "T " << stringify( table ) << std::endl << std::endl;
+*/
+			turned_cards++;
 		}
 
-		if ( p1.empty() ) {
-			std::cout << p << ",2," << mosse << std::endl;
+		std::string winner;
+
+		if ( A.empty() && B.empty() ) {
+			winner = "AB";
 		}
 
-		if ( p2.empty() ) {
-			std::cout << p << ",1," << mosse << std::endl;
+		if ( A.empty() ) {
+			winner = "B";
 		}
 
-		p++;
+		if ( B.empty() ) {
+			winner = "A";
+		}
+
+		std::cout << match << "," << winner << "," << turned_cards << "," << number_of_battles << std::endl;
+
+		match++;
 
 	} while ( std::next_permutation( deck.begin(), deck.end() ) );
+
+
+	ULONGLONG end = ptime();
+	std::cout << begin << "\t" << end << "\t" << end - begin;
 
 	return 0;
 }
