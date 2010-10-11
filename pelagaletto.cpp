@@ -82,8 +82,12 @@ ULONGLONG ptime()
 }
 
 
+
 int main(int argc, char* argv[])
 {
+	int start_from = 0;
+	std::cin >> start_from;
+
 	ULONGLONG begin = ptime();
 
 	int count = 3;
@@ -113,100 +117,178 @@ int main(int argc, char* argv[])
 	int match = 0;
 	std::cout << "match" << "," << "result" << "," << "turned_cards" << "," << "number_of_battles" << std::endl;
 
+	bool start =  false;
+
 	do {
-		deck_t A( deck.begin()       , deck.begin()+size/2 );
-		deck_t B( deck.begin()+size/2, deck.end()          );
+		if ( match >= start_from  ) {
+	
+			deck_t A( deck.begin()       , deck.begin()+size/2 );
+			deck_t B( deck.begin()+size/2, deck.end()          );
 
-		/*
-		std::cerr << "Start " << match << std::endl;
-		std::cerr << "A " << stringify( A ) << std::endl;
-		std::cerr << "B " << stringify( B ) << std::endl << std::endl;
-		*/
+			/*
+			std::cerr << "Start " << match << std::endl;
+			std::cerr << "A " << stringify( A ) << std::endl;
+			std::cerr << "B " << stringify( B ) << std::endl << std::endl;
+			*/
 
-		deck_t table;
+			deck_t table;
 
-		deck_t* first_player  = &A;
-		deck_t* battle_starter;
+			deck_t* first_player  = &A;
+			deck_t* battle_starter;
 
-		bool battle = false;
-		int number_of_battles = 0;
-		int battle_cards = 0;
-		int turned_cards = 0;
-		std::set< std::string > statuses;
-		bool finite = true;
+			bool battle = false;
+			int number_of_battles = 0;
+			int battle_cards = 0;
+			int turned_cards = 0;
+			bool finite = true;
 
-		while ( !(A.empty() || B.empty()) && finite ) {
-
+			/*
+			std::set< std::string > statuses;
+			
 			std::string status;
 			status += stringify( A );
 			status += stringify( B );
 			status += stringify( table );
-
-			/*
-			if ( statuses.count( status ) ) {
-				finite = false;
+			if ( first_player == &A ) {
+				status += " A";
+			} else if ( first_player == &B ) {
+				status += " B";
+			}
+			if ( battle ) {
+				status += " 1";
 			} else {
-				statuses.insert( status );
-			}*/
+				status += " 0";
+			}
+			if ( battle ) {
+				if ( battle_starter == &A ) {
+					status += " A";
+				} else if ( battle_starter == &B ) {
+					status += " B";
+				}
+			} else {
+				status += " X";
+			}
+			std::ostringstream oss;
+			oss << " " << battle_cards;
+			status += oss.str();
+			*/
 
-			if ( finite ) {
-				card_t c = put( table, *first_player );
+			while ( !(A.empty() || B.empty()) && finite ) {
 
-				// aggiorna battle
-				bool prev_battle = battle;
-				switch ( c ) {
-					case 1: 
-					case 2:
-					case 3:
-						battle=true;
-						number_of_battles++;
-						battle_cards = c;
-						battle_starter = first_player;
-						break;
-					default:
-						if ( battle ) {
-							battle_cards--;
-							if ( battle_cards == 0 ) {
-								battle = false;
-								win( table, *battle_starter );
+	/*			
+				if ( statuses.count( status ) ) {
+					finite = false;
+				} else {
+					statuses.insert( status );
+				}
+	*/
+				if ( finite ) {
+					card_t c = put( table, *first_player );
+
+					// aggiorna battle
+					switch ( c ) {
+						case 1: 
+						case 2:
+						case 3:
+							battle=true;
+							number_of_battles++;
+							battle_cards = c;
+							battle_starter = first_player;
+							break;
+						default:
+							if ( battle ) {
+								battle_cards--;
+								if ( battle_cards == 0 ) {
+									battle = false;
+									win( table, *battle_starter );
+								}
 							}
-						}
-				}// fine - aggiorna battle
+					}// fine - aggiorna battle
 
-				// aggiorna first_player
-				if ( battle ) {
-					if ( first_player == battle_starter ) {
-						myswap( &first_player, &A, &B );
+					// aggiorna first_player
+					if ( battle ) {
+						if ( first_player == battle_starter ) {
+							myswap( &first_player, &A, &B );
+						} else {
+						}
 					} else {
+						myswap( &first_player, &A, &B );
+					}// fine - aggiorna first_player
+		/*
+					std::cerr << match << "." << turned_cards << std::endl;
+					std::cerr << "A " << stringify( A ) << std::endl;
+					std::cerr << "B " << stringify( B ) << std::endl;
+					std::cerr << "T " << stringify( table ) << std::endl << std::endl;
+		*/
+					turned_cards++;
+				}
+
+				if ( turned_cards >= 475*35 ) {
+					finite = false;
+				}
+
+				/*
+				std::string status1;
+				status1 += stringify( A );
+				status1 += stringify( B );
+				status1 += stringify( table );
+				if ( first_player == &A ) {
+					status1 += " A";
+				} else if ( first_player == &B ) {
+					status1 += " B";
+				}
+				if ( battle ) {
+					status1 += " 1";
+				} else {
+					status1 += " 0";
+				}
+				if ( battle ) {
+					if ( battle_starter == &A ) {
+						status1 += " A";
+					} else if ( battle_starter == &B ) {
+						status1 += " B";
 					}
 				} else {
-					myswap( &first_player, &A, &B );
-				}// fine - aggiorna first_player
-	/*
-				std::cerr << match << "." << turned_cards << std::endl;
-				std::cerr << "A " << stringify( A ) << std::endl;
-				std::cerr << "B " << stringify( B ) << std::endl;
-				std::cerr << "T " << stringify( table ) << std::endl << std::endl;
-	*/
-				turned_cards++;
+					status1 += " X";
+				}
+				std::ostringstream oss;
+				oss << " " << battle_cards;
+				status1 += oss.str();
+
+				if ( status1 == status ) {
+					finite = false;
+				}
+
+
+				if ( A.size() == 10 && B.size() == 10 ) {
+					if ( first_player == &A ) {
+						std::cout << " A" << std::endl;
+					} else if ( first_player == &B ) {
+						std::cout << " B" << std::endl;
+					}
+					std::cout << stringify( A ) << std::endl;
+					std::cout << stringify( B ) << std::endl << std::endl;
+				}
+				*/
 			}
+
+			std::string result;
+
+			if ( A.empty() && B.empty() ) {
+				result = "AB";
+			} else if ( A.empty() ) {
+				result = "B";
+			} else if ( B.empty() ) {
+				result = "A";
+			} else if ( !finite ) {
+				result = "infinite";
+			}
+
+			std::cout << match << "," << result << "," << turned_cards << "," << number_of_battles << std::endl;
 		}
-
-		std::string result;
-
-		if ( A.empty() && B.empty() ) {
-			result = "AB";
-		} else if ( A.empty() ) {
-			result = "B";
-		} else if ( B.empty() ) {
-			result = "A";
-		} else if ( !finite ) {
-			result = "infinite";
-		}
-
-		std::cout << match << "," << result << "," << turned_cards << "," << number_of_battles << std::endl;
 
 		match++;
+		
 	} while ( std::next_permutation( deck.begin(), deck.end() ) );
 
 
