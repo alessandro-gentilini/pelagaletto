@@ -134,7 +134,7 @@ int main(int , char* )
 				if ( finite ) {
 					card_t c = put( table, *first_player );
 
-					// aggiorna battle
+					// update battle status
 					switch ( c ) {
 						case 1: 
 						case 2:
@@ -152,9 +152,9 @@ int main(int , char* )
 									win( table, *battle_starter );
 								}
 							}
-					}// fine - aggiorna battle
+					}// end - update battle status
 
-					// aggiorna first_player
+					// update first_player
 					if ( battle ) {
 						if ( first_player == battle_starter ) {
 							myswap( &first_player, &A, &B );
@@ -162,7 +162,8 @@ int main(int , char* )
 						}
 					} else {
 						myswap( &first_player, &A, &B );
-					}// fine - aggiorna first_player
+					}// end - update first_player
+
 					turned_cards++;
 				}
 
