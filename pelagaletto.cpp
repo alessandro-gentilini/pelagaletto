@@ -69,6 +69,7 @@ deck_t init( const std::string& s )
 	return d;
 }
 
+#ifdef COMPILE_ON_WINDOWS
 #include <windows.h>
 ULONGLONG ptime()
 {
@@ -79,13 +80,98 @@ ULONGLONG ptime()
 	li.LowPart = u.dwLowDateTime;
 	return li.QuadPart;
 }
+#endif
 
-int main(int , char* )
+std::string game( const deck_t& deck )
+{
+	deck_t A( deck.begin(), deck.begin()+deck.size()/2 );
+	deck_t B( deck.begin()+deck.size()/2, deck.end() );
+
+	deck_t table;
+
+	deck_t* first_player  = &A;
+	deck_t* battle_starter = 0;
+
+	bool battle = false;
+	int number_of_battles = 0;
+	int battle_cards = 0;
+	int turned_cards = 0;
+	bool finite = true;
+
+	while ( !(A.empty() || B.empty()) && finite ) {
+
+		if ( finite ) {
+			card_t c = put( table, *first_player );
+
+			// update battle status
+			switch ( c ) {
+				case 1: 
+				case 2:
+				case 3:
+					battle=true;
+					number_of_battles++;
+					battle_cards = c;
+					battle_starter = first_player;
+					break;
+				default:
+					if ( battle ) {
+						battle_cards--;
+						if ( battle_cards == 0 ) {
+							battle = false;
+							win( table, *battle_starter );
+						}
+					}
+			}// end - update battle status
+
+			// update first_player
+			if ( battle ) {
+				if ( first_player == battle_starter ) {
+					myswap( &first_player, &A, &B );
+				} else {
+				}
+			} else {
+				myswap( &first_player, &A, &B );
+			}// end - update first_player
+
+			turned_cards++;
+		}
+
+		if ( turned_cards >= 475*35 ) {
+			finite = false;
+		}
+
+	}
+
+	std::string result;
+
+	if ( A.empty() && B.empty() ) {
+		result = "AB";
+	} else if ( A.empty() ) {
+		result = "B";
+	} else if ( B.empty() ) {
+		result = "A";
+	} else if ( !finite ) {
+		result = "infinite";
+	}
+
+	std::ostringstream res;
+	res << result << "," << turned_cards << "," << number_of_battles 
+		<< std::endl;
+
+	return res.str();
+}
+
+int main(int argc, char* argv[] )
 {
 	int start_from = 0;
-	std::cin >> start_from;
+	if ( argc == 2 ) {
+		std::istringstream iss(argv[1]);
+		iss >> start_from;
+	}
 
+#ifdef COMPILE_ON_WINDOWS
 	ULONGLONG begin = ptime();
+#endif
 
 	size_t size = 20;
 	card_t battle_cards[]={1,2,3,
@@ -113,89 +199,16 @@ int main(int , char* )
 
 	do {
 		if ( match >= start_from  ) {
-	
-			deck_t A( deck.begin()       , deck.begin()+size/2 );
-			deck_t B( deck.begin()+size/2, deck.end()          );
-
-
-			deck_t table;
-
-			deck_t* first_player  = &A;
-			deck_t* battle_starter = 0;
-
-			bool battle = false;
-			int number_of_battles = 0;
-			int battle_cards = 0;
-			int turned_cards = 0;
-			bool finite = true;
-
-			while ( !(A.empty() || B.empty()) && finite ) {
-
-				if ( finite ) {
-					card_t c = put( table, *first_player );
-
-					// update battle status
-					switch ( c ) {
-						case 1: 
-						case 2:
-						case 3:
-							battle=true;
-							number_of_battles++;
-							battle_cards = c;
-							battle_starter = first_player;
-							break;
-						default:
-							if ( battle ) {
-								battle_cards--;
-								if ( battle_cards == 0 ) {
-									battle = false;
-									win( table, *battle_starter );
-								}
-							}
-					}// end - update battle status
-
-					// update first_player
-					if ( battle ) {
-						if ( first_player == battle_starter ) {
-							myswap( &first_player, &A, &B );
-						} else {
-						}
-					} else {
-						myswap( &first_player, &A, &B );
-					}// end - update first_player
-
-					turned_cards++;
-				}
-
-				if ( turned_cards >= 475*35 ) {
-					finite = false;
-				}
-
-			}
-
-			std::string result;
-
-			if ( A.empty() && B.empty() ) {
-				result = "AB";
-			} else if ( A.empty() ) {
-				result = "B";
-			} else if ( B.empty() ) {
-				result = "A";
-			} else if ( !finite ) {
-				result = "infinite";
-			}
-
-			std::cout << match << "," << result << "," << turned_cards 
-				      << "," << number_of_battles << std::endl;
+			std::cout << match << "," << game( deck );
 		}
-
 		match++;
-		
 	} while ( std::next_permutation( deck.begin(), deck.end() ) );
 
 
+#ifdef COMPILE_ON_WINDOWS
 	ULONGLONG end = ptime();
-	std::cerr << begin << "\t" << end << "\t" << end - begin;
+	std::cerr << begin << "\t" << end << "\t" << end - begin << "\t" << (end-begin)*100e-9;
+#endif
 
 	return 0;
 }
