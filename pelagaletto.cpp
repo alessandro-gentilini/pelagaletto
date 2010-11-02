@@ -1,24 +1,28 @@
 /*
 Pelagaletto
-Alessandro Gentilini
-Warning: the code is not polished.
+Pelagaletto is an Italian card game similar to Beggar-My-Neighbour. 
 
-GNU General Public License v3
+Warning: the code is not polished!
+
+Author: Alessandro Gentilini
+Source: http://code.google.com/p/pelagaletto/
+License: GNU General Public License v3
+
+$Rev$
 $Date$
-$Id$
 */
 
 #include <string>
 #include <sstream>
 #include <exception>
-
 #include <algorithm>
 #include <iostream>
 #include <deque>
+#include <iomanip>
+#include <set>
 
 typedef std::deque< int > deck_t;
 typedef deck_t::value_type card_t;
-
 
 void win( deck_t& table, deck_t& winner )
 {
@@ -45,7 +49,6 @@ void myswap( deck_t** first_player, deck_t* A, deck_t* B )
 	}
 }
 
-#include <iomanip>
 std::string stringify( const deck_t& d )
 {
 	std::ostringstream ss;
@@ -66,34 +69,23 @@ deck_t init( const std::string& s )
 	return d;
 }
 
-#include <set>
-
-
-
 #include <windows.h>
-
 ULONGLONG ptime()
 {
 	FILETIME c, e, k, u;
-	BOOL b = ::GetProcessTimes( ::GetCurrentProcess(), &c, &e, &k, &u );
+	::GetProcessTimes( ::GetCurrentProcess(), &c, &e, &k, &u );
 	ULARGE_INTEGER li;
 	li.HighPart = u.dwHighDateTime;
 	li.LowPart = u.dwLowDateTime;
 	return li.QuadPart;
 }
 
-
-
-int main(int argc, char* argv[])
+int main(int , char* )
 {
 	int start_from = 0;
 	std::cin >> start_from;
 
 	ULONGLONG begin = ptime();
-
-	int count = 3;
-	
-	std::set< std::string > provate;
 
 	size_t size = 20;
 	card_t battle_cards[]={1,2,3,
@@ -116,9 +108,8 @@ int main(int argc, char* argv[])
 	std::sort( deck.begin(), deck.end() );
 
 	int match = 0;
-	std::cout << "match" << "," << "result" << "," << "turned_cards" << "," << "number_of_battles" << std::endl;
-
-	bool start =  false;
+	std::cout << "match" << "," << "result" << "," << "turned_cards" << "," 
+		      << "number_of_battles" << std::endl;
 
 	do {
 		if ( match >= start_from  ) {
@@ -126,16 +117,11 @@ int main(int argc, char* argv[])
 			deck_t A( deck.begin()       , deck.begin()+size/2 );
 			deck_t B( deck.begin()+size/2, deck.end()          );
 
-			/*
-			std::cerr << "Start " << match << std::endl;
-			std::cerr << "A " << stringify( A ) << std::endl;
-			std::cerr << "B " << stringify( B ) << std::endl << std::endl;
-			*/
 
 			deck_t table;
 
 			deck_t* first_player  = &A;
-			deck_t* battle_starter;
+			deck_t* battle_starter = 0;
 
 			bool battle = false;
 			int number_of_battles = 0;
@@ -143,46 +129,8 @@ int main(int argc, char* argv[])
 			int turned_cards = 0;
 			bool finite = true;
 
-			/*
-			std::set< std::string > statuses;
-			
-			std::string status;
-			status += stringify( A );
-			status += stringify( B );
-			status += stringify( table );
-			if ( first_player == &A ) {
-				status += " A";
-			} else if ( first_player == &B ) {
-				status += " B";
-			}
-			if ( battle ) {
-				status += " 1";
-			} else {
-				status += " 0";
-			}
-			if ( battle ) {
-				if ( battle_starter == &A ) {
-					status += " A";
-				} else if ( battle_starter == &B ) {
-					status += " B";
-				}
-			} else {
-				status += " X";
-			}
-			std::ostringstream oss;
-			oss << " " << battle_cards;
-			status += oss.str();
-			*/
-
 			while ( !(A.empty() || B.empty()) && finite ) {
 
-	/*			
-				if ( statuses.count( status ) ) {
-					finite = false;
-				} else {
-					statuses.insert( status );
-				}
-	*/
 				if ( finite ) {
 					card_t c = put( table, *first_player );
 
@@ -215,12 +163,6 @@ int main(int argc, char* argv[])
 					} else {
 						myswap( &first_player, &A, &B );
 					}// fine - aggiorna first_player
-		/*
-					std::cerr << match << "." << turned_cards << std::endl;
-					std::cerr << "A " << stringify( A ) << std::endl;
-					std::cerr << "B " << stringify( B ) << std::endl;
-					std::cerr << "T " << stringify( table ) << std::endl << std::endl;
-		*/
 					turned_cards++;
 				}
 
@@ -228,49 +170,6 @@ int main(int argc, char* argv[])
 					finite = false;
 				}
 
-				/*
-				std::string status1;
-				status1 += stringify( A );
-				status1 += stringify( B );
-				status1 += stringify( table );
-				if ( first_player == &A ) {
-					status1 += " A";
-				} else if ( first_player == &B ) {
-					status1 += " B";
-				}
-				if ( battle ) {
-					status1 += " 1";
-				} else {
-					status1 += " 0";
-				}
-				if ( battle ) {
-					if ( battle_starter == &A ) {
-						status1 += " A";
-					} else if ( battle_starter == &B ) {
-						status1 += " B";
-					}
-				} else {
-					status1 += " X";
-				}
-				std::ostringstream oss;
-				oss << " " << battle_cards;
-				status1 += oss.str();
-
-				if ( status1 == status ) {
-					finite = false;
-				}
-
-
-				if ( A.size() == 10 && B.size() == 10 ) {
-					if ( first_player == &A ) {
-						std::cout << " A" << std::endl;
-					} else if ( first_player == &B ) {
-						std::cout << " B" << std::endl;
-					}
-					std::cout << stringify( A ) << std::endl;
-					std::cout << stringify( B ) << std::endl << std::endl;
-				}
-				*/
 			}
 
 			std::string result;
@@ -285,7 +184,8 @@ int main(int argc, char* argv[])
 				result = "infinite";
 			}
 
-			std::cout << match << "," << result << "," << turned_cards << "," << number_of_battles << std::endl;
+			std::cout << match << "," << result << "," << turned_cards 
+				      << "," << number_of_battles << std::endl;
 		}
 
 		match++;
