@@ -5,6 +5,7 @@ Warning: the code is not polished.
 
 GNU General Public License v3
 $Date: 2010-10-11 22:30:08 +0200 (lun, 11 ott 2010) $
+$Id$
 */
 
 #include <string>
