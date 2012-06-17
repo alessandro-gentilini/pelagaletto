@@ -329,6 +329,7 @@ bool test()
 
    bool passed = true;
 
+   // http://www2.math.uu.se/~rmann/Miscellaneous.html
    char Mann_A[] = "K-KK----K-A-----JAA--Q--J-";
    char Mann_B[] = "---Q---Q-J-----J------AQ--";
    A = init(Mann_A);
@@ -339,6 +340,8 @@ bool test()
       passed = false;
    }
 
+   // http://www2.math.uu.se/~rmann/Miscellaneous.html
+   // http://people.virginia.edu/~rcn9f/
    char Nessler_1_A[] = "----Q------A--K--A-A--QJK-";
    char Nessler_1_B[] = "-Q--J--J---QK---K----JA---";
    A = init(Nessler_1_A);
@@ -349,6 +352,8 @@ bool test()
       passed = false;
    }
 
+   // http://www2.math.uu.se/~rmann/Miscellaneous.html
+   // http://people.virginia.edu/~rcn9f/   
    char Nessler_2_A[] = "-J-------Q------A--A--QKK-";
    char Nessler_2_B[] = "-A-Q--J--J---Q--AJ-K---K--";
    A = init(Nessler_2_A);
