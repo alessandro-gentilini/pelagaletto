@@ -72,7 +72,8 @@ template <size_t N>
 class Less 
 { 
 public:
-   bool operator() (const std::bitset<N> &lhs, const std::bitset<N> &rhs) const 
+   bool operator() (const std::bitset<N> &lhs, 
+      const std::bitset<N> &rhs) const 
    { 
       size_t i = N;
       while ( i > 0 ) {
@@ -102,7 +103,8 @@ const size_t N_PAY         = 1;//pay
 const size_t N_ROLES       = 3;//battle_starter,starter,answerer
 const size_t N_SEPS        = 3;//A,B,table
 
-const size_t BIT_STATUS_SIZE = BITS_PER_CODE*(N_BATTLE_FLAG+N_PAY+N_ROLES+N_SEPS) + BITS_PER_CODE*N_CARDS;
+const size_t BIT_STATUS_SIZE = BITS_PER_CODE*(N_BATTLE_FLAG+N_PAY+N_ROLES+N_SEPS) 
+   + BITS_PER_CODE*N_CARDS;
 typedef std::bitset<BIT_STATUS_SIZE> BitStatus;
 typedef std::map< BitStatus, size_t, Less< BIT_STATUS_SIZE > > StatusBitMap;
 //typedef std::unordered_map< BitStatus, size_t > StatusBitMap;
@@ -181,13 +183,17 @@ void play_game(
          //std::cout << bs << "\n";
 
          //std::ostringstream oss;
-         //oss << "A" << to_string(A) << "B" << to_string(B) << "T" << to_string(table) << whois(starter) << whois(answerer) << battle << whois(battle_starter) << pay;
+         //oss << "A" << to_string(A) << "B" << to_string(B) << "T" << to_string(table) 
+         //    << whois(starter) << whois(answerer) << battle << whois(battle_starter) 
+         //    << pay;
          //std::string status = oss.str();
          //std::cout << status << "\n";
 
          if ( statuses.count( bs ) ) {
             if ( statuses[bs] == cnt ) {
-               std::cout << "infinite: " << "A:" << to_string(A) << "B:" << to_string(B) << "T:" << to_string(table) << "\n";
+               std::cout << "infinite: " << "A:" << to_string(A) 
+                  << "B:" << to_string(B) 
+                  << "T:" << to_string(table) << "\n";
             } else {
                std::cout << cnt << "->" << statuses[bs] << "\n";
             }
@@ -216,7 +222,8 @@ void play_game(
                if ( pay==0 ) {
                   battle = false;
                   std::reverse( table.begin(), table.end() );
-                  std::copy( table.begin(), table.end(), std::back_inserter(*battle_starter) );
+                  std::copy( table.begin(), table.end(), 
+                     std::back_inserter(*battle_starter) );
                   table.clear();
                   nb++;
 
@@ -254,7 +261,11 @@ void play_game_1( std::deque<int>& A,
    while ( !stop && !A.empty() && !B.empty() ) {
 
       std::ostringstream oss;
-      oss << "A" << to_string(A) << "B" << to_string(B) << "T" << to_string(table) << whois(starter) << whois(answerer) << battle << whois(battle_starter) << pay;
+      oss << "A" << to_string(A) 
+         << "B" << to_string(B) 
+         << "T" << to_string(table) 
+         << whois(starter) 
+         << whois(answerer) << battle << whois(battle_starter) << pay;
       std::string status = oss.str();
       if ( statuses.count( status ) ) {
          if ( statuses[status]==cnt ) {
@@ -287,7 +298,8 @@ void play_game_1( std::deque<int>& A,
                if ( pay==0 ) {
                   battle = false;
                   std::reverse( table.begin(), table.end() );
-                  std::copy( table.begin(), table.end(), std::back_inserter(*battle_starter) );
+                  std::copy( table.begin(), table.end(), 
+                     std::back_inserter(*battle_starter) );
                   table.clear();
 
                   std::cout<< "A:" << to_string(A) << "\n";
@@ -334,7 +346,8 @@ bool test()
    char Mann_B[] = "---Q---Q-J-----J------AQ--";
    A = init(Mann_A);
    B = init(Mann_B);
-   play_game(A,B,table,starter,answerer,battle_starter,statuses,cnt,n_cards,n_battles,false);
+   play_game(A,B,table,starter,answerer,battle_starter,statuses,cnt,
+      n_cards,n_battles,false);
    if ( n_cards != 7157 || n_battles != 1007 ) {
       std::cerr << "Failed test: Mann\n";
       passed = false;
@@ -346,7 +359,8 @@ bool test()
    char Nessler_1_B[] = "-Q--J--J---QK---K----JA---";
    A = init(Nessler_1_A);
    B = init(Nessler_1_B);
-   play_game(A,B,table,starter,answerer,battle_starter,statuses,cnt,n_cards,n_battles,false);
+   play_game(A,B,table,starter,answerer,battle_starter,statuses,cnt,
+      n_cards,n_battles,false);
    if ( n_cards != 7207 || n_battles != 1015 ) {
       std::cerr << "Failed test: Nessler 1\n";
       passed = false;
@@ -358,12 +372,13 @@ bool test()
    char Nessler_2_B[] = "-A-Q--J--J---Q--AJ-K---K--";
    A = init(Nessler_2_A);
    B = init(Nessler_2_B);
-   play_game(A,B,table,starter,answerer,battle_starter,statuses,cnt,n_cards,n_battles,false);
+   play_game(A,B,table,starter,answerer,battle_starter,statuses,cnt,n_cards,
+      n_battles,false);
    if ( n_cards != 7224 || n_battles != 1016 ) {
       std::cerr << "Failed test: Nessler 2\n";
       passed = false;
    }
-       
+
    return passed;
 }
 
@@ -375,7 +390,7 @@ int main()
    std::sort(deck.begin(),deck.end());
    std::deque< int > A;
    std::deque< int > B;
-   
+
    StatusBitMap statuses;
    std::deque<int> table;
 
