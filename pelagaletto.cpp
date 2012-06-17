@@ -1,215 +1,404 @@
-/*
-Pelagaletto
-Pelagaletto is an Italian card game similar to Beggar-My-Neighbour. 
+//
+// Pelagaletto
+// Pelagaletto is an Italian card game similar to Beggar-My-Neighbour. 
+//
+// Warning: the code is not polished!
+//
+// Author : Alessandro Gentilini
+// Source : http://code.google.com/p/pelagaletto/
+// License: GNU General Public License v3
+//
+// $Rev$
+// $Date$
+//
 
-Warning: the code is not polished!
-
-Author: Alessandro Gentilini
-Source: http://code.google.com/p/pelagaletto/
-License: GNU General Public License v3
-
-$Rev$
-$Date$
-*/
-
-#include <string>
-#include <sstream>
-#include <exception>
+#include <deque>
 #include <algorithm>
 #include <iostream>
-#include <deque>
-#include <iomanip>
-#include <set>
+#include <iterator>
+#include <map>
+#include <sstream>
+#include <bitset>
 
-typedef std::deque< int > deck_t;
-typedef deck_t::value_type card_t;
+#include <unordered_map>
 
-void win( deck_t& table, deck_t& winner )
+std::string to_string( const std::deque<int>& d )
 {
-	while ( !table.empty() ) {
-		winner.push_back( table.back() );
-		table.pop_back();
-	}
+   std::ostringstream oss;
+   const size_t sz = d.size();
+   for( size_t i = 0; i < sz; i++ ) {
+      oss << d[i];
+   }
+   return oss.str();
 }
 
-card_t put( deck_t& table, deck_t& putter )
+std::deque<int>* address_A;
+std::deque<int>* address_B;
+
+char whois( std::deque<int>* p )
 {
-	card_t f = putter.front();
-	table.push_front( f );
-	putter.pop_front();
-	return f;
+   if ( p == address_A )
+      return 'A';
+   else if ( p == address_B )
+      return 'B';
+   else if ( p == 0 )
+      return 'N';
+   else
+      throw "address changed?";
 }
 
-void myswap( deck_t** first_player, deck_t* A, deck_t* B )
+std::deque< int > init( const std::string& s )
 {
-	if ( *first_player == A ) {
-		*first_player = B;
-	} else if ( *first_player == B ) {
-		*first_player = A;
-	}
+   std::deque< int > r;
+   for ( size_t i = 0; i < s.length(); i++ ) {
+      switch( s[i] ) {
+      case '1': 
+      case 'J': 
+         r.push_back(1); break;
+      case '2': 
+      case 'Q': 
+         r.push_back(2); break;
+      case '3':
+      case 'K':
+         r.push_back(3); break;
+      case 'A': r.push_back(4); break;
+      default: r.push_back(0); break;
+      }
+   }
+   return r;
 }
 
-std::string stringify( const deck_t& d )
+template <size_t N>
+class Less 
+{ 
+public:
+   bool operator() (const std::bitset<N> &lhs, const std::bitset<N> &rhs) const 
+   { 
+      size_t i = N;
+      while ( i > 0 ) {
+         if ( lhs[i-1] == rhs[i-1] ) {
+            i--;
+         } else if ( lhs[i-1] < rhs[i-1] ) {
+            return true;
+         } else {
+            return false;
+         }
+      }
+      return false;
+   } 
+}; 
+
+const size_t N_CARDS         = 20;
+const size_t MAX_BATTLE_CARD = 3;
+const size_t BITS_PER_CODE   = 3;
+
+const size_t CODE_NONE = MAX_BATTLE_CARD + 1;
+const size_t CODE_A    = CODE_NONE + 1;
+const size_t CODE_B    = CODE_A + 1;
+const size_t CODE_SEP  = CODE_B + 1;
+
+const size_t N_BATTLE_FLAG = 1;//battle
+const size_t N_PAY         = 1;//pay
+const size_t N_ROLES       = 3;//battle_starter,starter,answerer
+const size_t N_SEPS        = 3;//A,B,table
+
+const size_t BIT_STATUS_SIZE = BITS_PER_CODE*(N_BATTLE_FLAG+N_PAY+N_ROLES+N_SEPS) + BITS_PER_CODE*N_CARDS;
+typedef std::bitset<BIT_STATUS_SIZE> BitStatus;
+typedef std::map< BitStatus, size_t, Less< BIT_STATUS_SIZE > > StatusBitMap;
+//typedef std::unordered_map< BitStatus, size_t > StatusBitMap;
+
+typedef std::map< std::string, size_t > StatusStringMap;
+
+BitStatus whois2( std::deque< int >* d )
 {
-	std::ostringstream ss;
-	for ( deck_t::const_iterator it = d.begin(); it != d.end(); it++ ) {
-		ss << std::setw(2) << std::setfill('0') << *it << " ";
-	}
-	return ss.str();
+   if ( d == 0 )
+      return BitStatus(static_cast<unsigned long long>(CODE_NONE));
+   else if ( d == address_A )
+      return BitStatus(static_cast<unsigned long long>(CODE_A));
+   else if ( d == address_B )
+      return BitStatus(static_cast<unsigned long long>(CODE_B));
+   else
+      throw std::exception("address changed?");
 }
 
-deck_t init( const std::string& s )
+BitStatus to_string2( const std::deque< int >& d )
 {
-	deck_t d;
-	std::istringstream ss(s);
-	card_t c;
-	while( ss >> c ) {
-		d.push_back( c );
-	}
-	return d;
+   BitStatus r;
+   for ( size_t i = 0; i < d.size(); i++ ) {
+      r <<= BITS_PER_CODE;
+      r  |= d[i];
+   }
+   return r;
 }
 
-#ifdef COMPILE_ON_WINDOWS
-#include <windows.h>
-ULONGLONG ptime()
+void play_game( 
+   std::deque<int>& A,
+   std::deque<int>& B,
+   std::deque<int>& table,
+   std::deque<int>* starter,
+   std::deque<int>* answerer,
+   std::deque<int>* battle_starter,
+   StatusBitMap& statuses,
+   size_t& cnt,
+   size_t& n_cards,
+   size_t& n_battles,
+   bool cache = true
+   )
 {
-	FILETIME c, e, k, u;
-	::GetProcessTimes( ::GetCurrentProcess(), &c, &e, &k, &u );
-	ULARGE_INTEGER li;
-	li.HighPart = u.dwHighDateTime;
-	li.LowPart = u.dwLowDateTime;
-	return li.QuadPart;
-}
-#endif
+   int pay   = 0;
+   size_t n  = 0; 
+   size_t nb = 0;
 
-std::string game( const deck_t& deck )
-{
-	deck_t A( deck.begin(), deck.begin()+deck.size()/2 );
-	deck_t B( deck.begin()+deck.size()/2, deck.end() );
+   bool stop  = false;
+   bool battle = false;
+   while ( !stop && !A.empty() && !B.empty() ) {
+      if ( cache ) {
+         BitStatus bs;
+         bs.set();
+         bs <<= BITS_PER_CODE;
+         bs  |= BitStatus(battle);
+         bs <<= BITS_PER_CODE;
+         bs  |= BitStatus(static_cast<unsigned long long>(pay));
+         bs <<= BITS_PER_CODE;
+         bs  |= whois2(battle_starter);
+         bs <<= BITS_PER_CODE;
+         bs  |= whois2(starter);
+         bs <<= BITS_PER_CODE;
+         bs  |= whois2(answerer);
+         bs <<= BITS_PER_CODE;
+         bs  |= BitStatus(static_cast<unsigned long long>(CODE_SEP));
+         bs <<= (BITS_PER_CODE*A.size());
+         bs  |= to_string2(A);
+         bs <<= BITS_PER_CODE;
+         bs  |= BitStatus(static_cast<unsigned long long>(CODE_SEP));
+         bs <<= (BITS_PER_CODE*B.size());
+         bs  |= to_string2(B);
+         bs <<= BITS_PER_CODE;
+         bs  |= BitStatus(static_cast<unsigned long long>(CODE_SEP));
+         bs <<= (BITS_PER_CODE*table.size());
+         bs  |= to_string2(table); 
 
-	deck_t table;
+         //std::cout << bs << "\n";
 
-	deck_t* first_player  = &A;
-	deck_t* battle_starter = 0;
+         //std::ostringstream oss;
+         //oss << "A" << to_string(A) << "B" << to_string(B) << "T" << to_string(table) << whois(starter) << whois(answerer) << battle << whois(battle_starter) << pay;
+         //std::string status = oss.str();
+         //std::cout << status << "\n";
 
-	bool battle = false;
-	int number_of_battles = 0;
-	int battle_cards = 0;
-	int turned_cards = 0;
-	bool finite = true;
+         if ( statuses.count( bs ) ) {
+            if ( statuses[bs] == cnt ) {
+               std::cout << "infinite: " << "A:" << to_string(A) << "B:" << to_string(B) << "T:" << to_string(table) << "\n";
+            } else {
+               std::cout << cnt << "->" << statuses[bs] << "\n";
+            }
+            stop = true;
+         } else {
+            statuses.insert( std::make_pair( bs, cnt ) );
+         }
+      }
 
-	while ( !(A.empty() || B.empty()) && finite ) {
+      if ( !stop ) {
+         //std::cout<< "A:" << to_string(A) << "\n";
+         //std::cout<< "B:" << to_string(B) << "\n";
+         //std::cout<< "T:" << to_string(table) << "\n\n";
 
-		if ( finite ) {
-			card_t c = put( table, *first_player );
+         table.push_front( starter->front() );
+         starter->pop_front();
+         n++;
+         if ( 0 != table.front() ) {
+            battle = true;
+            battle_starter = starter;
+            pay = table.front();
+            std::swap( starter, answerer );
+         } else {
+            if ( battle ) {
+               pay--;
+               if ( pay==0 ) {
+                  battle = false;
+                  std::reverse( table.begin(), table.end() );
+                  std::copy( table.begin(), table.end(), std::back_inserter(*battle_starter) );
+                  table.clear();
+                  nb++;
 
-			// update battle status
-			switch ( c ) {
-				case 1: 
-				case 2:
-				case 3:
-					battle=true;
-					number_of_battles++;
-					battle_cards = c;
-					battle_starter = first_player;
-					break;
-				default:
-					if ( battle ) {
-						battle_cards--;
-						if ( battle_cards == 0 ) {
-							battle = false;
-							win( table, *battle_starter );
-						}
-					}
-			}// end - update battle status
+                  //std::cout<< "A:" << to_string(A) << "\n";
+                  //std::cout<< "B:" << to_string(B) << "\n";
+                  //std::cout<< "T:" << to_string(table) << "\n\n";
 
-			// update first_player
-			if ( battle ) {
-				if ( first_player == battle_starter ) {
-					myswap( &first_player, &A, &B );
-				} else {
-				}
-			} else {
-				myswap( &first_player, &A, &B );
-			}// end - update first_player
-
-			turned_cards++;
-		}
-
-		if ( turned_cards >= 475*35 ) {
-			finite = false;
-		}
-
-	}
-
-	std::string result;
-
-	if ( A.empty() && B.empty() ) {
-		result = "AB";
-	} else if ( A.empty() ) {
-		result = "B";
-	} else if ( B.empty() ) {
-		result = "A";
-	} else if ( !finite ) {
-		result = "infinite";
-	}
-
-	std::ostringstream res;
-	res << result << "," << turned_cards << "," << number_of_battles 
-		<< std::endl;
-
-	return res.str();
-}
-
-int main(int argc, char* argv[] )
-{
-	int start_from = 0;
-	if ( argc == 2 ) {
-		std::istringstream iss(argv[1]);
-		iss >> start_from;
-	}
-
-#ifdef COMPILE_ON_WINDOWS
-	ULONGLONG begin = ptime();
-#endif
-
-	size_t size = 20;
-	card_t battle_cards[]={1,2,3,
-						   1,2,3,
-						   /*1,2,3,
-	                       1,2,3*/
-						  };
-
-	deck_t deck( size, 0 );
-	size_t battle_cards_size = sizeof(battle_cards)/sizeof(card_t);
-	deck_t::iterator sep = deck.begin() + battle_cards_size;
-	for ( deck_t::iterator it = deck.begin(); it != sep; it++ ) {
-		*it = battle_cards[ it - deck.begin() ];
-	}
-	bool verbose = false;
-	for ( deck_t::iterator it = sep; verbose && it != deck.end(); it++ ) {
-		*it = ++battle_cards_size;
-	}
-
-	std::sort( deck.begin(), deck.end() );
-
-	int match = 0;
-	std::cout << "match" << "," << "result" << "," << "turned_cards" << "," 
-		      << "number_of_battles" << std::endl;
-
-	do {
-		if ( match >= start_from  ) {
-			std::cout << match << "," << game( deck );
-		}
-		match++;
-	} while ( std::next_permutation( deck.begin(), deck.end() ) );
-
-
-#ifdef COMPILE_ON_WINDOWS
-	ULONGLONG end = ptime();
-	std::cerr << begin << "\t" << end << "\t" << end - begin << "\t" << (end-begin)*100e-9;
-#endif
-
-	return 0;
+                  std::swap( starter, answerer );
+               }
+            } else {
+               std::swap( starter, answerer );
+            }
+         }
+      }
+   } 
+   table.clear();
+   n_cards   = n;
+   n_battles = nb;
 }
 
+void play_game_1( std::deque<int>& A,
+   std::deque<int>& B,
+   std::deque<int>& table,
+   std::deque<int>* starter,
+   std::deque<int>* answerer,
+   std::deque<int>* battle_starter,
+   StatusStringMap& statuses,
+   size_t& cnt
+   )
+{
+   bool battle = false;
+   int pay = 0;
+   size_t n = 0;
+   bool stop = false;
+   while ( !stop && !A.empty() && !B.empty() ) {
+
+      std::ostringstream oss;
+      oss << "A" << to_string(A) << "B" << to_string(B) << "T" << to_string(table) << whois(starter) << whois(answerer) << battle << whois(battle_starter) << pay;
+      std::string status = oss.str();
+      if ( statuses.count( status ) ) {
+         if ( statuses[status]==cnt ) {
+            std::cout << "infinite:" << cnt << "\n";
+         } else {
+            std::cout << cnt << "->" << statuses[status] << "\n";
+         }
+         stop = true;
+      } else {
+         statuses.insert( std::make_pair( status, cnt ) );
+      }
+
+      if ( !stop ) {
+
+         std::cout<< "A:" << to_string(A) << "\n";
+         std::cout<< "B:" << to_string(B) << "\n";
+         std::cout<< "T:" << to_string(table) << "\n\n";
+
+         table.push_front( starter->front() );
+         starter->pop_front();
+         n++;
+         if ( 0 != table.front() ) {
+            battle = true;
+            battle_starter = starter;
+            pay = table.front();
+            std::swap( starter, answerer );
+         } else {
+            if ( battle ) {
+               pay--;
+               if ( pay==0 ) {
+                  battle = false;
+                  std::reverse( table.begin(), table.end() );
+                  std::copy( table.begin(), table.end(), std::back_inserter(*battle_starter) );
+                  table.clear();
+
+                  std::cout<< "A:" << to_string(A) << "\n";
+                  std::cout<< "B:" << to_string(B) << "\n";
+                  std::cout<< "T:" << to_string(table) << "\n\n";
+
+                  std::swap( starter, answerer );
+               }
+            } else {
+               std::swap( starter, answerer );
+            }
+         }
+      }
+   } 
+
+   std::cout << cnt << "\t" << n << "\n";
+   table.clear();
+   cnt++;
+}
+
+bool test()
+{
+   std::deque< int > A;
+   std::deque< int > B;
+
+   StatusBitMap statuses;
+   std::deque<int> table;
+
+   address_A = &A;
+   address_B = &B;
+
+   std::deque< int >* starter  = address_A;
+   std::deque< int >* answerer = address_B;
+   std::deque< int >* battle_starter = 0;
+
+   size_t cnt = 0;
+   size_t n_cards   = 0;
+   size_t n_battles = 0;
+
+   bool passed = true;
+
+   char Mann_A[] = "K-KK----K-A-----JAA--Q--J-";
+   char Mann_B[] = "---Q---Q-J-----J------AQ--";
+   A = init(Mann_A);
+   B = init(Mann_B);
+   play_game(A,B,table,starter,answerer,battle_starter,statuses,cnt,n_cards,n_battles,false);
+   if ( n_cards != 7157 || n_battles != 1007 ) {
+      std::cerr << "Failed test: Mann\n";
+      passed = false;
+   }
+
+   char Nessler_1_A[] = "----Q------A--K--A-A--QJK-";
+   char Nessler_1_B[] = "-Q--J--J---QK---K----JA---";
+   A = init(Nessler_1_A);
+   B = init(Nessler_1_B);
+   play_game(A,B,table,starter,answerer,battle_starter,statuses,cnt,n_cards,n_battles,false);
+   if ( n_cards != 7207 || n_battles != 1015 ) {
+      std::cerr << "Failed test: Nessler 1\n";
+      passed = false;
+   }
+
+   char Nessler_2_A[] = "-J-------Q------A--A--QKK-";
+   char Nessler_2_B[] = "-A-Q--J--J---Q--AJ-K---K--";
+   A = init(Nessler_2_A);
+   B = init(Nessler_2_B);
+   play_game(A,B,table,starter,answerer,battle_starter,statuses,cnt,n_cards,n_battles,false);
+   if ( n_cards != 7224 || n_battles != 1016 ) {
+      std::cerr << "Failed test: Nessler 2\n";
+      passed = false;
+   }
+       
+   return passed;
+}
+
+int main() 
+{    
+   if (!test()) return 1;
+
+   std::deque< int > deck = init("12300000001230000000");
+   std::sort(deck.begin(),deck.end());
+   std::deque< int > A;
+   std::deque< int > B;
+   
+   StatusBitMap statuses;
+   std::deque<int> table;
+
+   address_A = &A;
+   address_B = &B;
+
+   std::deque< int >* starter  = address_A;
+   std::deque< int >* answerer = address_B;
+   std::deque< int >* battle_starter = 0;
+
+   size_t cnt = 0;
+   size_t n_cards   = 0;
+   size_t n_battles = 0;
+
+   do{
+      A = std::deque<int>(deck.begin()              , deck.begin()+deck.size()/2);
+      B = std::deque<int>(deck.begin()+deck.size()/2, deck.end()                );
+
+      try{
+         play_game(A,B,table,starter,answerer,battle_starter,statuses,cnt,n_cards,n_battles);
+         std::cout << cnt << "\t" << n_cards << "\n";
+         cnt++;
+      }catch( const std::exception& e ) {
+         std::cerr << "error: " << e.what() << "\n";
+      }catch(...){
+         std::cerr << "unknown error\n";
+      }
+   }while( std::next_permutation( deck.begin(), deck.end() ) );
+
+   return 0; 
+}
