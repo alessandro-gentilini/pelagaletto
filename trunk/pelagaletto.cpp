@@ -22,7 +22,13 @@
 
 #include <unordered_map>
 
-std::string to_string( const std::deque<int>& d )
+#include <ctime>
+
+typedef std::deque<int> CardDeck;
+typedef size_t GameID;
+
+// Convert the card deck d to a string
+std::string to_string( const CardDeck& d )
 {
    std::ostringstream oss;
    const size_t sz = d.size();
@@ -32,24 +38,10 @@ std::string to_string( const std::deque<int>& d )
    return oss.str();
 }
 
-std::deque<int>* address_A;
-std::deque<int>* address_B;
-
-char whois( std::deque<int>* p )
+// Convert a string to a card deck
+CardDeck init( const std::string& s )
 {
-   if ( p == address_A )
-      return 'A';
-   else if ( p == address_B )
-      return 'B';
-   else if ( p == 0 )
-      return 'N';
-   else
-      throw "address changed?";
-}
-
-std::deque< int > init( const std::string& s )
-{
-   std::deque< int > r;
+   CardDeck r;
    for ( size_t i = 0; i < s.length(); i++ ) {
       switch( s[i] ) {
       case '1': 
@@ -68,6 +60,24 @@ std::deque< int > init( const std::string& s )
    return r;
 }
 
+// I will keep the addresses of the two player's card decks
+CardDeck* address_A;
+CardDeck* address_B;
+
+// Return the char identifier of the card deck whose address is p
+char whois( CardDeck* p )
+{
+   if ( p == address_A )
+      return 'A';
+   else if ( p == address_B )
+      return 'B';
+   else if ( p == 0 )
+      return 'N';
+   else
+      throw "address changed?";
+}
+
+// Operator Less for a bitset of N bits.
 template <size_t N>
 class Less 
 { 
@@ -89,6 +99,36 @@ public:
    } 
 }; 
 
+// Hash operator for a bitset of N bits.
+// It is adapted from the functor std::tr1::hash<std::string> that comes from 
+// the header <xfunctional> shipped with Microsoft Visual Studio 2010 Express
+template <size_t N>
+class Hash 
+{ 
+public:
+	size_t operator() (const std::bitset<N> &bs) const 
+		{	// hash _Keyval to size_t value by pseudorandomizing transform
+		size_t _Val = 2166136261U;
+		size_t _First = 0;
+		size_t _Last = N;
+		size_t _Stride = 1 + _Last / 10;
+
+		for(; _First < _Last; _First += _Stride)
+			_Val = 16777619U * _Val ^ (size_t)bs[_First];
+		return (_Val);
+		}   
+}; 
+
+// The status of a game is composed by:
+// -battle flag
+// -pay (how many cards one has to pay)
+// -player id who started the battle (if any)
+// -first player id
+// -second player id
+// -card deck of player A
+// -card deck of player B
+// -card deck on the table
+
 const size_t N_CARDS         = 20;
 const size_t MAX_BATTLE_CARD = 3;
 const size_t BITS_PER_CODE   = 3;
@@ -104,26 +144,37 @@ const size_t N_ROLES       = 3;//battle_starter,starter,answerer
 const size_t N_SEPS        = 3;//A,B,table
 
 const size_t BIT_STATUS_SIZE = BITS_PER_CODE*(N_BATTLE_FLAG+N_PAY+N_ROLES+N_SEPS) 
-   + BITS_PER_CODE*N_CARDS;
+                               + BITS_PER_CODE*N_CARDS;
+
+// The status of a game is stored as a bitset.
 typedef std::bitset<BIT_STATUS_SIZE> BitStatus;
-typedef std::map< BitStatus, size_t, Less< BIT_STATUS_SIZE > > StatusBitMap;
-//typedef std::unordered_map< BitStatus, size_t > StatusBitMap;
 
-typedef std::map< std::string, size_t > StatusStringMap;
+// A test for keeping the statuses of the games in an (ordered) map
+//typedef std::map< BitStatus, GameID, Less< BIT_STATUS_SIZE > > StatusBitMap;
 
-BitStatus whois2( std::deque< int >* d )
+// The unordered map of the statuses of the games
+typedef std::unordered_map< BitStatus, GameID, Hash< BIT_STATUS_SIZE > > StatusBitMap;
+
+// A map where the status is stored as a string (it needs more memory than the bitset)
+typedef std::map< std::string, GameID > StatusStringMap;
+
+bool keep_info_between_games = false;
+
+// Return the bitset identifier of the card deck whose address is p
+BitStatus whois2( CardDeck* p )
 {
-   if ( d == 0 )
+   if ( p == 0 )
       return BitStatus(static_cast<unsigned long long>(CODE_NONE));
-   else if ( d == address_A )
+   else if ( p == address_A )
       return BitStatus(static_cast<unsigned long long>(CODE_A));
-   else if ( d == address_B )
+   else if ( p == address_B )
       return BitStatus(static_cast<unsigned long long>(CODE_B));
    else
       throw std::exception("address changed?");
 }
 
-BitStatus to_string2( const std::deque< int >& d )
+// Convert the deck d to a biset representation
+BitStatus to_string2( const CardDeck& d )
 {
    BitStatus r;
    for ( size_t i = 0; i < d.size(); i++ ) {
@@ -133,18 +184,21 @@ BitStatus to_string2( const std::deque< int >& d )
    return r;
 }
 
-void play_game( 
-   std::deque<int>& A,
-   std::deque<int>& B,
-   std::deque<int>& table,
-   std::deque<int>* starter,
-   std::deque<int>* answerer,
-   std::deque<int>* battle_starter,
+// Play one game, it uses an unordered map of bitset games statuses
+// in order to detect an infinite loop game.
+void play_game(
+   const CardDeck& deck,
+   CardDeck& A,
+   CardDeck& B,
+   CardDeck& table,
+   CardDeck* starter,
+   CardDeck* answerer,
+   CardDeck* battle_starter,
    StatusBitMap& statuses,
-   size_t& cnt,
+   GameID& cnt,
    size_t& n_cards,
    size_t& n_battles,
-   bool cache = true
+   bool check_for_infinite_loop = true
    )
 {
    int pay   = 0;
@@ -154,7 +208,7 @@ void play_game(
    bool stop  = false;
    bool battle = false;
    while ( !stop && !A.empty() && !B.empty() ) {
-      if ( cache ) {
+      if ( check_for_infinite_loop ) {
          BitStatus bs;
          bs.set();
          bs <<= BITS_PER_CODE;
@@ -191,9 +245,7 @@ void play_game(
 
          if ( statuses.count( bs ) ) {
             if ( statuses[bs] == cnt ) {
-               std::cout << "infinite: " << "A:" << to_string(A) 
-                  << "B:" << to_string(B) 
-                  << "T:" << to_string(table) << "\n";
+               std::cout << cnt << " infinite " << to_string(deck) << "\n";
             } else {
                std::cout << cnt << "->" << statuses[bs] << "\n";
             }
@@ -244,14 +296,16 @@ void play_game(
    n_battles = nb;
 }
 
-void play_game_1( std::deque<int>& A,
-   std::deque<int>& B,
-   std::deque<int>& table,
-   std::deque<int>* starter,
-   std::deque<int>* answerer,
-   std::deque<int>* battle_starter,
+// Play one game, it uses an ordered map of string games statuses
+// in order to detect an infinite loop game.
+void play_game_1( CardDeck& A,
+   CardDeck& B,
+   CardDeck& table,
+   CardDeck* starter,
+   CardDeck* answerer,
+   CardDeck* battle_starter,
    StatusStringMap& statuses,
-   size_t& cnt
+   GameID& cnt
    )
 {
    bool battle = false;
@@ -315,27 +369,29 @@ void play_game_1( std::deque<int>& A,
       }
    } 
 
-   std::cout << cnt << "\t" << n << "\n";
+   std::cout << cnt << "," << n << "\n";
    table.clear();
+   statuses.clear();
    cnt++;
 }
 
+// A test with some public internet available records.
 bool test()
 {
-   std::deque< int > A;
-   std::deque< int > B;
+   CardDeck A;
+   CardDeck B;
 
    StatusBitMap statuses;
-   std::deque<int> table;
+   CardDeck table;
 
    address_A = &A;
    address_B = &B;
 
-   std::deque< int >* starter  = address_A;
-   std::deque< int >* answerer = address_B;
-   std::deque< int >* battle_starter = 0;
+   CardDeck* starter  = address_A;
+   CardDeck* answerer = address_B;
+   CardDeck* battle_starter = 0;
 
-   size_t cnt = 0;
+   GameID cnt = 0;
    size_t n_cards   = 0;
    size_t n_battles = 0;
 
@@ -346,7 +402,7 @@ bool test()
    char Mann_B[] = "---Q---Q-J-----J------AQ--";
    A = init(Mann_A);
    B = init(Mann_B);
-   play_game(A,B,table,starter,answerer,battle_starter,statuses,cnt,
+   play_game(CardDeck(),A,B,table,starter,answerer,battle_starter,statuses,cnt,
       n_cards,n_battles,false);
    if ( n_cards != 7157 || n_battles != 1007 ) {
       std::cerr << "Failed test: Mann\n";
@@ -359,7 +415,7 @@ bool test()
    char Nessler_1_B[] = "-Q--J--J---QK---K----JA---";
    A = init(Nessler_1_A);
    B = init(Nessler_1_B);
-   play_game(A,B,table,starter,answerer,battle_starter,statuses,cnt,
+   play_game(CardDeck(),A,B,table,starter,answerer,battle_starter,statuses,cnt,
       n_cards,n_battles,false);
    if ( n_cards != 7207 || n_battles != 1015 ) {
       std::cerr << "Failed test: Nessler 1\n";
@@ -372,7 +428,7 @@ bool test()
    char Nessler_2_B[] = "-A-Q--J--J---Q--AJ-K---K--";
    A = init(Nessler_2_A);
    B = init(Nessler_2_B);
-   play_game(A,B,table,starter,answerer,battle_starter,statuses,cnt,n_cards,
+   play_game(CardDeck(),A,B,table,starter,answerer,battle_starter,statuses,cnt,n_cards,
       n_battles,false);
    if ( n_cards != 7224 || n_battles != 1016 ) {
       std::cerr << "Failed test: Nessler 2\n";
@@ -386,37 +442,52 @@ int main()
 {    
    if (!test()) return 1;
 
-   std::deque< int > deck = init("12300000001230000000");
+   CardDeck deck = init("12300000001230000000");
+   if ( deck.size() != N_CARDS ) {
+      std::cerr << "error: deck size and status size mismatch\n";
+      return 2;
+   }
    std::sort(deck.begin(),deck.end());
-   std::deque< int > A;
-   std::deque< int > B;
+   CardDeck A;
+   CardDeck B;
 
    StatusBitMap statuses;
-   std::deque<int> table;
+   CardDeck table;
 
    address_A = &A;
    address_B = &B;
 
-   std::deque< int >* starter  = address_A;
-   std::deque< int >* answerer = address_B;
-   std::deque< int >* battle_starter = 0;
+   CardDeck* starter  = address_A;
+   CardDeck* answerer = address_B;
+   CardDeck* battle_starter = 0;
 
-   size_t cnt = 0;
+   GameID cnt = 0;
    size_t n_cards   = 0;
    size_t n_battles = 0;
 
+   clock_t before;
+   double elapsed;
+   before = clock();
+   
    do{
-      A = std::deque<int>(deck.begin()              , deck.begin()+deck.size()/2);
-      B = std::deque<int>(deck.begin()+deck.size()/2, deck.end()                );
-
+      A = CardDeck(deck.begin()              , deck.begin()+deck.size()/2);
+      B = CardDeck(deck.begin()+deck.size()/2, deck.end()                );
+            
       try{
-         play_game(A,B,table,starter,answerer,battle_starter,statuses,cnt,n_cards,n_battles);
-         std::cout << cnt << "\t" << n_cards << "\n";
+         play_game(deck,A,B,table,starter,answerer,battle_starter,statuses,cnt,n_cards,n_battles);
+         if ( !keep_info_between_games ) {
+            statuses.clear();
+         }
+         std::cout << cnt << "," << n_cards << "\n";
          cnt++;
       }catch( const std::exception& e ) {
          std::cerr << "error: " << e.what() << "\n";
       }catch(...){
          std::cerr << "unknown error\n";
+      }
+      if ( cnt % 10000 == 0 ) {
+         elapsed = clock() - before;
+         std::cerr << elapsed/CLOCKS_PER_SEC << "," << statuses.size() << "\n";
       }
    }while( std::next_permutation( deck.begin(), deck.end() ) );
 
